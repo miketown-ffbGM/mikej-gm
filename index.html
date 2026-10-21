@@ -200,8 +200,35 @@ refresh();renderQueue();
    if(score<85)choices.push({fact:'Week '+g.week+' low score',text:manager+', '+fmt(score)+' points in Week '+g.week+'? Even the scoreboard fell asleep.'});
    if(Math.abs(score-oppScore)<3)choices.push({fact:'Week '+g.week+' close game',text:manager+', a '+fmt(Math.abs(score-oppScore))+'-point game in Week '+g.week+'? Your blood pressure needs an IR slot.'});
   });
+
+  const tone=document.getElementById('smack-style').value;
+  const burns=[];
+  if(row){
+   const rank=[...standings].sort((a,b)=>b[1]-a[1]||b[3]-a[3]).findIndex(r=>r[0]===team)+1;
+   if(row[1]===0)burns.push('Mitchell, your team is 0–6. At this point the only thing Ascend Domination is dominating is the waiver priority.');
+   if(row[1]>=5&&row[3]<600)burns.push(manager+', you are '+row[1]+'-'+row[2]+' with '+fmt(row[3])+' points. That is not a winning formula; that is identity theft from better teams.');
+   if(row[3]>=750&&row[2]>=2)burns.push(manager+', '+fmt(row[3])+' points and still '+row[2]+' losses. You built a Ferrari and keep driving it into the ditch.');
+   if(rank>8)burns.push(manager+', '+rank+'th place? Your playoff strategy is apparently hoping the league expands.');
+   if(row[4]>row[3])burns.push(manager+', your team gives up more points than it scores. You are not a fantasy manager; you are a points donation center.');
+  }
+  const played=games.filter(g=>g.a===team||g.b===team);
+  const lowGame=played.map(g=>({week:g.week,points:g.a===team?g.as:g.bs})).sort((a,b)=>a.points-b.points)[0];
+  if(lowGame&&lowGame.points<90)burns.push(manager+', '+fmt(lowGame.points)+' points in Week '+lowGame.week+'. I have seen stronger performances from an automatic bye.');
+  const worstLoss=played.map(g=>({week:g.week,mine:g.a===team?g.as:g.bs,other:g.a===team?g.bs:g.as,opp:g.a===team?g.b:g.a})).filter(g=>g.mine<g.other).sort((a,b)=>(b.other-b.mine)-(a.other-a.mine))[0];
+  if(worstLoss)burns.push(manager+', '+worstLoss.opp+' beat you by '+fmt(worstLoss.other-worstLoss.mine)+' in Week '+worstLoss.week+'. That was not a matchup; that was a public service announcement.');
+  if(team==='Dumpster Fire')burns.push('Ryan, 59.54 points in Week 6. Dumpster Fire is the first team in league history to make its name look like a scouting report.');
+  if(team==='Truck Stick Dylan')burns.push('Dylan, winning by 0.24 points in Week 6 is not Truck Stick. That is a parking-lot tap.');
+  if(team==='Fili-Pinot Noir')burns.push('Joey, Jason hung 176.12 on you in Week 4. Fili-Pinot Noir? More like Fili-Pour Another.');
+  if(team==='Go Ducks!')burns.push('Joel, your Week 6 opponent scored 59.54 and you won with 72.18. That was not football. That was two teams arguing over last place in a group project.');
+  if(team==='Ongo Gablogian')burns.push('Ryan S., 5–1 with 594.70 points. You have the record of a contender and the scoring output of a team that forgot to set its lineup.');
+  if(team==='Zay’d and Confused')burns.push('Jason, 778.58 points and still two losses. Your team scores like a champion and closes like a folding chair.');
+  if(team==='Injury Prone')burns.push('Owen, you beat MIKEJ. 86.38 to 78.02. Congratulations on winning a game both teams should apologize for.');
+  if(team==='Dangerous')burns.push('Dan, calling a 3–3 team Dangerous is a bold choice. Statistically, you are just Mildly Concerning.');
+  if(team==='Algerythms')burns.push('Darren, your team scored 684.22 points and went 2–4. Maybe try an algorithm that includes winning.');
+  if(team==="She's Krafty")burns.push('Lippman, 678.58 points and a 2–4 record. That is not crafty. That is an elaborate way to lose.');
+  if(tone==='spicy'||tone==='absurd')burns.forEach(text=>choices.push({fact:'League results and standings',text}));
   const pool=choices.filter(c=>c.text!==previous);
-  const chosen=pool[counter%pool.length]||choices[0];counter++;
+  const chosen=pool[(counter*7+3)%pool.length]||choices[0];counter++;
   previous=chosen.text;
   const style=document.getElementById('smack-style').value;
   const occasion=document.getElementById('smack-occasion').value;
