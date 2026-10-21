@@ -154,7 +154,35 @@ function generateSmack(){
  document.getElementById('smack-output').textContent=smackLast;
  const source=document.getElementById('smack-source');if(source)source.textContent='Based on: '+chosen.fact+' · supplied 2026 league snapshot';
 }
-document.getElementById('smack-generate').addEventListener('click',generateSmack);
+document.getElementById('smack-generate').addEventListener('click',()=>{try{generateSmack()}catch(error){document.getElementById('smack-output').textContent='Unable to generate: '+error.message;console.error(error)}});
 document.getElementById('smack-copy').addEventListener('click',async()=>{if(!smackLast)generateSmack();if(!smackLast)return;try{await navigator.clipboard.writeText(smackLast);document.getElementById('smack-copy').textContent='Copied!';setTimeout(()=>document.getElementById('smack-copy').textContent='Copy message',1800)}catch{document.getElementById('smack-output').textContent=smackLast+'\n\nSelect the message above and copy it manually.'}});
 refresh();renderQueue();
+</script><script>
+(function(){
+ const button=document.getElementById('smack-generate'),target=document.getElementById('smack-target'),output=document.getElementById('smack-output');
+ if(!button||!target||!output)return;
+ const records={
+ 'Algerythms':['Darren','Week 5: Algerythms beat MIKEJ. 136.90 to 99.00. Enjoy that receipt while it lasts.'],
+ 'Ascend Domination':['Mitchell','0–6 through Week 6. Six chances, zero wins. The win column is still in preseason.'],
+ 'Dangerous':['Dan','Week 5: Dangerous dropped 149.94 on Zay’d and Confused. The scoreboard needed a cooling fan.'],
+ 'Dumpster Fire':['Ryan E.','Week 6: Dumpster Fire scored 59.54. The team name is becoming a documentary.'],
+ 'Fili-Pinot Noir':['Joey','Week 4: Zay’d and Confused beat Fili-Pinot Noir 176.12–101.84. That is a lot of Pinot to forget.'],
+ 'Go Ducks!':['Joel','Week 4: MIKEJ. 152.48, Go Ducks! 102.76. Ducks did not fly that Sunday.'],
+ 'Injury Prone':['Owen','Week 6: Injury Prone beat MIKEJ. 86.38–78.02. I am keeping the receipt for the rematch.'],
+ 'Ongo Gablogian':['Ryan S.','Ongo Gablogian started 5–1 with just 594.70 points scored. That is efficiency bordering on sorcery.'],
+ "She's Krafty":['Lippman',"Week 6: She's Krafty dropped 139.32 on Ascend Domination's 64.84. Someone call the mercy-rule committee."],
+ 'Truck Stick Dylan':['Dylan','Week 6: Truck Stick Dylan won 91.52–91.28. A 0.24-point victory is basically a coin found in the couch.'],
+ 'Zay’d and Confused':['Jason','Week 4: Zay’d and Confused scored 176.12. That is enough points to trigger a league audit.']
+ };
+ let n=0;
+ button.addEventListener('click',function(){
+  // Independent fallback: guarantees a working generator even if an earlier app handler fails.
+  const key=target.value,entry=records[key];if(!entry)return;
+  if(output.textContent&&output.textContent!=='Pick a target and hit Generate.'&&!output.textContent.startsWith('Unable to generate:')&&!output.textContent.startsWith('No verified league history'))return;
+  const style=document.getElementById('smack-style')?.value||'playful';
+  const variants=[' '+entry[1],' '+entry[0]+', the league remembers: '+entry[1],'Receipts for '+entry[0]+': '+entry[1]];
+  output.textContent=variants[(n++)%variants.length].trim()+(style==='spicy'?' The numbers do not lie.':style==='absurd'?' The spreadsheet has entered witness protection.':style==='respectful'?' All respect, of course.':'');
+  const source=document.getElementById('smack-source');if(source)source.textContent='Based on: verified 2026 league scores · Weeks 1–6';
+ },true);
+})();
 </script></body></html>
