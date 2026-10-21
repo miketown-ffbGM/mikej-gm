@@ -15,19 +15,41 @@ function refresh(){const s=saved.standings||suppliedStandings,a=saved.agents||su
 document.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===button));document.querySelectorAll('main section').forEach(section=>{section.hidden=section.id!==button.dataset.tab})}));
 function parse(type,raw){
  const rows=[];
- for(const line of raw.split(/\r?\n/)){
-  const p=line.trim().split(/\t+/).map(v=>v.trim()).filter(Boolean);
-  if(type==='agents'){
-   if(p.length>=4&&/^(QB|RB|WR|TE|K|DEF)$/i.test(p[1])&&Number.isFinite(Number(p[3])))rows.push([p[0],p[1].toUpperCase(),p[2],Number(p[3])]);
-   continue;
+ const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ if(type==='agents'){
+  for(let i=0;i<lines.length;i++){
+   const line=lines[i],p=line.split(/\t+/).map(x=>x.trim());
+   if(p.length>=4&&/^(QB|RB|WR|TE|K|DEF)$/i.test(p[1])&&Number.isFinite(+p[3])){rows.push([p[0],p[1].toUpperCase(),p[2],+p[3]]);continue}
+   const team=line.match(/^[A-Za-z]{2,4}\s*-\s*(QB|RB|WR|TE|K|DEF)\b/i);
+   if(!team||i<1)continue;
+   const position=team[1].toUpperCase();
+   const previous=lines[i-1];
+   const suffix=/(?:Video Forecast)?(?:New Player Note|Player Note)$/;
+   if(!suffix.test(previous))continue;
+   const name=previous.replace(suffix,'').replace(/[QDO]$/,'').trim();
+   if(!name||/^(Fantasy|Offense|Roster Status)$/i.test(name))continue;
+   let status=null,projection=null;
+   for(let j=i+1;j<Math.min(lines.length,i+12);j++){
+    const x=lines[j];
+    if(/^(FA|W\s*\([^)]+\))$/.test(x)){
+     if(/^\d+$/.test(lines[j+1]||'')&&/^\d+$/.test(lines[j+2]||'')&&/^-?\d+(?:\.\d+)?$/.test(lines[j+3]||'')){
+      status=x;projection=Number(lines[j+3]);break;
+     }
+    }
+    if(/^[A-Za-z]{2,4}\s*-\s*(QB|RB|WR|TE|K|DEF)\b/i.test(x))break;
+   }
+   if(status!==null&&projection!==null)rows.push([name,position,status,projection]);
   }
+  return rows;
+ }
+ for(const line of lines){
+  const p=line.split(/\t+/).map(v=>v.trim()).filter(Boolean);
   const v=/^\d+$/.test(p[0])?p.slice(1):p;
   if(v.length>=8&&/^\d+-\d+-\d+$/.test(v[1])){
-   const record=v[1].split('-');
-   const name=v[0].replace(/^logo\s+/i,'').trim();
+   const record=v[1].split('-'),name=v[0].replace(/^logo\s+/i,'').trim();
    const pf=Number(v[2].replace(/,/g,'')),pa=Number(v[3].replace(/,/g,''));
    const fab=Number(String(v[5]).replace(/[^\d]/g,'')),priority=Number(v[6]);
-   if(name&&[pf,pa,fab,priority].every(Number.isFinite))rows.push([name,Number(record[0]),Number(record[1]),pf,pa,fab,priority]);
+   if(name&&[pf,pa,fab,priority].every(Number.isFinite))rows.push([name,+record[0],+record[1],pf,pa,fab,priority]);
   }
  }
  return rows;
