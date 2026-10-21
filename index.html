@@ -174,16 +174,42 @@ refresh();renderQueue();
  'Truck Stick Dylan':['Dylan','Week 6: Truck Stick Dylan won 91.52–91.28. A 0.24-point victory is basically a coin found in the couch.'],
  'Zay’d and Confused':['Jason','Week 4: Zay’d and Confused scored 176.12. That is enough points to trigger a league audit.']
  };
- let n=0;
+
+ const games=[{"week":1,"a":"Mike Jacobs","as":130.86,"b":"Ongo Gablogian","bs":84.72},{"week":1,"a":"Fili-Pinot Noir","as":103.56,"b":"Go Ducks!","bs":50.14},{"week":1,"a":"Dumpster Fire","as":133.16,"b":"Truck Stick Dylan","bs":119.3},{"week":1,"a":"Algerythms","as":132.16,"b":"Zay’d and Confused","bs":133.56},{"week":1,"a":"Ascend Domination","as":74.28,"b":"Dangerous","bs":94.86},{"week":1,"a":"Injury Prone","as":108.4,"b":"She's Krafty","bs":140.92},{"week":2,"a":"Mike Jacobs","as":81.6,"b":"Dumpster Fire","bs":68.62},{"week":2,"a":"Ongo Gablogian","as":98.28,"b":"She's Krafty","bs":92.36},{"week":2,"a":"Fili-Pinot Noir","as":79.78,"b":"Algerythms","bs":131.92},{"week":2,"a":"Ascend Domination","as":76.1,"b":"Truck Stick Dylan","bs":121.96},{"week":2,"a":"Dangerous","as":102.84,"b":"Go Ducks!","bs":122.12},{"week":2,"a":"Injury Prone","as":83.48,"b":"Zay’d and Confused","bs":145.88},{"week":3,"a":"Mike Jacobs","as":131.74,"b":"Ascend Domination","bs":85.68},{"week":3,"a":"Ongo Gablogian","as":69.76,"b":"Dumpster Fire","bs":52.94},{"week":3,"a":"Fili-Pinot Noir","as":99.04,"b":"Injury Prone","bs":108.9},{"week":3,"a":"Algerythms","as":113.52,"b":"Dangerous","bs":135.58},{"week":3,"a":"Truck Stick Dylan","as":107.04,"b":"Go Ducks!","bs":124.54},{"week":3,"a":"Zay’d and Confused","as":118.04,"b":"She's Krafty","bs":91.12},{"week":4,"a":"Mike Jacobs","as":152.48,"b":"Go Ducks!","bs":102.76},{"week":4,"a":"Ongo Gablogian","as":94.78,"b":"Ascend Domination","bs":92.08},{"week":4,"a":"Fili-Pinot Noir","as":101.84,"b":"Zay’d and Confused","bs":176.12},{"week":4,"a":"Dumpster Fire","as":114.16,"b":"She's Krafty","bs":104.84},{"week":4,"a":"Algerythms","as":79.52,"b":"Truck Stick Dylan","bs":100.1},{"week":4,"a":"Dangerous","as":91.88,"b":"Injury Prone","bs":111.58},{"week":5,"a":"Mike Jacobs","as":99,"b":"Algerythms","bs":136.9},{"week":5,"a":"Ongo Gablogian","as":131.76,"b":"Go Ducks!","bs":83.02},{"week":5,"a":"Fili-Pinot Noir","as":129.98,"b":"She's Krafty","bs":110.02},{"week":5,"a":"Dumpster Fire","as":122.8,"b":"Ascend Domination","bs":118.98},{"week":5,"a":"Dangerous","as":149.94,"b":"Zay’d and Confused","bs":113.7},{"week":5,"a":"Truck Stick Dylan","as":94.62,"b":"Injury Prone","bs":133.42},{"week":6,"a":"Mike Jacobs","as":78.02,"b":"Injury Prone","bs":86.38},{"week":6,"a":"Ongo Gablogian","as":115.4,"b":"Algerythms","bs":90.2},{"week":6,"a":"Fili-Pinot Noir","as":118.36,"b":"Dangerous","bs":116.14},{"week":6,"a":"Dumpster Fire","as":59.54,"b":"Go Ducks!","bs":72.18},{"week":6,"a":"Ascend Domination","as":64.84,"b":"She's Krafty","bs":139.32},{"week":6,"a":"Truck Stick Dylan","as":91.52,"b":"Zay’d and Confused","bs":91.28}];
+ const standings=[["Ongo Gablogian",5,1,594.7,541.46,50,1],["Zay’d and Confused",4,2,778.58,650.06,100,2],["Mike Jacobs",4,2,673.7,565.06,91,10],["Injury Prone",4,2,632.16,650.36,94,11],["Dangerous",3,3,691.24,653.56,100,12],["Truck Stick Dylan",3,3,634.54,638.02,88,7],["Fili-Pinot Noir",3,3,632.56,693.24,40,8],["Go Ducks!",3,3,554.76,657.22,94,4],["Dumpster Fire",3,3,551.22,566.66,83,5],["Algerythms",2,4,684.22,663.42,93,9],["She's Krafty",2,4,678.58,633.7,86,3],["Ascend Domination",0,6,511.96,705.46,92,6]];
+ let previous='',counter=0;
+ const fmt=n=>Number(n).toFixed(2);
  window.smackClick=function(){
-  const key=target.value,entry=records[key];
-  if(!entry){output.textContent='Choose a team to generate a roast.';return false;}
-  const style=document.getElementById('smack-style')?.value||'playful';
-  const occasion=document.getElementById('smack-occasion')?.value||'matchup';
-  const variants=[entry[1],entry[0]+', the league remembers: '+entry[1],'Receipts for '+entry[0]+': '+entry[1]];
-  const prefix=occasion==='trade'?'Before we talk trades: ':occasion==='win'?'Postgame report: ':occasion==='loss'?'Fair enough, but remember: ':'';
-  output.textContent=prefix+variants[(n++)%variants.length]+(style==='spicy'?' The numbers do not lie.':style==='absurd'?' The spreadsheet has entered witness protection.':style==='respectful'?' All respect, of course.':'');
-  const source=document.getElementById('smack-source');if(source)source.textContent='Based on: 2026 league scores · Weeks 1–6';
+  const team=target.value,entry=records[team];
+  if(!entry){output.textContent='Select a team first.';return false;}
+  const manager=entry[0],choices=[{fact:'Team history',text:entry[1]}];
+  const row=standings.find(r=>r[0]===team);
+  if(row){
+   choices.push({fact:'Standings',text:manager+', '+row[1]+'-'+row[2]+' through six weeks. The league has questions.'});
+   if(row[1]===0)choices.push({fact:'Winless streak',text:manager+', six games and zero wins. Your win column is still buffering.'});
+   if(row[4]>row[3])choices.push({fact:'Point differential',text:manager+', '+fmt(row[3])+' points for and '+fmt(row[4])+' against. Your defense is doing community service.'});
+  }
+  games.filter(g=>g.a===team||g.b===team).forEach(g=>{
+   const score=g.a===team?g.as:g.bs,oppScore=g.a===team?g.bs:g.as,opponent=g.a===team?g.b:g.a;
+   if(score<oppScore){
+    choices.push({fact:'Week '+g.week+' loss',text:manager+', Week '+g.week+' against '+opponent+': '+fmt(score)+' to '+fmt(oppScore)+'. That one belongs in the blooper reel.'});
+    choices.push({fact:'Week '+g.week+' margin',text:manager+', losing to '+opponent+' by '+fmt(oppScore-score)+' in Week '+g.week+' was a bold strategy.'});
+   }else{
+    choices.push({fact:'Week '+g.week+' win',text:manager+', nice win over '+opponent+' in Week '+g.week+'. Enjoy the highlight while it lasts.'});
+   }
+   if(score<85)choices.push({fact:'Week '+g.week+' low score',text:manager+', '+fmt(score)+' points in Week '+g.week+'? Even the scoreboard fell asleep.'});
+   if(Math.abs(score-oppScore)<3)choices.push({fact:'Week '+g.week+' close game',text:manager+', a '+fmt(Math.abs(score-oppScore))+'-point game in Week '+g.week+'? Your blood pressure needs an IR slot.'});
+  });
+  const pool=choices.filter(c=>c.text!==previous);
+  const chosen=pool[counter%pool.length]||choices[0];counter++;
+  previous=chosen.text;
+  const style=document.getElementById('smack-style').value;
+  const occasion=document.getElementById('smack-occasion').value;
+  const prefix={matchup:'',standings:'Standings check: ',trade:'Before we talk trades: ',win:'Victory lap: ',loss:'Fine, but: '}[occasion]||'';
+  const suffix={playful:' 😂',spicy:' The scoreboard has receipts.',absurd:' The analytics department is investigating.',respectful:' All respect—see you Sunday.'}[style]||'';
+  const message=prefix+chosen.text+suffix;
+  output.textContent=message;window.smackLast=message;
+  const source=document.getElementById('smack-source');if(source)source.textContent='Based on: '+chosen.fact+' · Weeks 1–6';
   return false;
  };
 })();
