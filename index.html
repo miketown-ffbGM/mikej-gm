@@ -155,7 +155,31 @@ function generateSmack(){
  const source=document.getElementById('smack-source');if(source)source.textContent='Based on: '+chosen.fact+' · supplied 2026 league snapshot';
 }
 // Smack Talker uses its own isolated click handler below.
-document.getElementById('smack-copy').addEventListener('click',async()=>{if(!smackLast)generateSmack();if(!smackLast)return;try{await navigator.clipboard.writeText(smackLast);document.getElementById('smack-copy').textContent='Copied!';setTimeout(()=>document.getElementById('smack-copy').textContent='Copy message',1800)}catch{document.getElementById('smack-output').textContent=smackLast+'\n\nSelect the message above and copy it manually.'}});
+document.getElementById('smack-copy').addEventListener('click',async()=>{
+ const button=document.getElementById('smack-copy');
+ const output=document.getElementById('smack-output');
+ let message=(output?.textContent||'').trim();
+ if(!message||message==='Pick a target and hit Generate.'){
+  if(typeof window.smackClick==='function')window.smackClick();
+  message=(output?.textContent||'').trim();
+ }
+ if(!message){button.textContent='Generate a message first';return}
+ try{
+  if(!navigator.clipboard?.writeText)throw new Error('Clipboard API unavailable');
+  await navigator.clipboard.writeText(message);
+  button.textContent='Copied!';
+ }catch(error){
+  const field=document.createElement('textarea');
+  field.value=message;field.setAttribute('readonly','');field.style.position='fixed';field.style.left='-9999px';
+  document.body.appendChild(field);field.focus();field.select();
+  const copied=document.execCommand('copy');field.remove();
+  button.textContent=copied?'Copied!':'Select message to copy';
+  if(!copied){
+   const selection=window.getSelection(),range=document.createRange();range.selectNodeContents(output);selection.removeAllRanges();selection.addRange(range);
+  }
+ }
+ setTimeout(()=>button.textContent='Copy message',2200);
+});
 refresh();renderQueue();
 </script><script>
 (function(){
