@@ -337,8 +337,8 @@ $('gs-refresh').onclick=async()=>{await loadPhotos();render()};loadPhotos().then
 const clientId='dj0yJmk9cWV5RW1wUUpJS1hrJmQ9WVdrOVZuSnVZV2hYU1ZFbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTk4';
 const redirectUri='https://miketown-ffbgm.github.io/mikej-gm/';
 const authEndpoint='https://api.login.yahoo.com/oauth2/request_auth';
-const tokenEndpoint='https://api.login.yahoo.com/oauth2/get_token';
-const leagueEndpoint='https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json';
+const workerBase='https://mikej-yahoo-api.miketown.workers.dev';
+const leaguePath='/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json';
 const el=id=>document.getElementById(id),status=message=>el('yahoo-status').textContent=message;
 let accessToken=null, expiresAt=0;
 const b64url=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -352,10 +352,9 @@ async function start(){
  location.assign(authEndpoint+'?'+params);
 }
 async function tokenExchange(code,verifier){
- const body=new URLSearchParams({client_id:clientId,redirect_uri:redirectUri,grant_type:'authorization_code',code,code_verifier:verifier});
- const res=await fetch(tokenEndpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+ const res=await fetch(workerBase+'/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,code_verifier:verifier})});
  const data=await res.json().catch(()=>({}));
- if(!res.ok||!data.access_token)throw Error(data.error_description||data.error||'Yahoo token request failed (HTTP '+res.status+'). Browser CORS restrictions may require a secure backend.');
+ if(!res.ok||!data.access_token)throw Error(data.error_description||data.error||'Yahoo token request failed (HTTP '+res.status+'). Check Worker deployment and Yahoo OAuth settings.');
  accessToken=data.access_token;expiresAt=Date.now()+(Number(data.expires_in)||3600)*1000;
  el('yahoo-fetch').disabled=false;el('yahoo-disconnect').disabled=false;
  status('Connected to Yahoo for this browser session. Select Test league access to verify API permissions.'); 
@@ -376,13 +375,13 @@ async function testLeague(){
  if(!accessToken||Date.now()>=expiresAt){status('Session expired. Connect again.');return}
  status('Requesting your Yahoo Fantasy league list...');
  try{
- const res=await fetch(leagueEndpoint,{headers:{Authorization:'Bearer '+accessToken,Accept:'application/json'}});
+ const res=await fetch(workerBase+'/fantasy?path='+encodeURIComponent(leaguePath),{headers:{Authorization:'Bearer '+accessToken,Accept:'application/json'}});
  const body=await res.text();
  if(!res.ok)throw Error('Yahoo Fantasy API HTTP '+res.status+': '+body.slice(0,250));
  let data;try{data=JSON.parse(body)}catch(e){throw Error('Unexpected response format from Yahoo')}
  el('yahoo-data').textContent=JSON.stringify(data,null,2).slice(0,30000);
  status('Yahoo Fantasy API responded successfully. Live data is shown in the test panel; dashboard data has not been overwritten.');
- }catch(e){status('League request failed: '+e.message+'. If this is a browser CORS error, a backend proxy may be required.')}
+ }catch(e){status('League request failed: '+e.message+'. Check the Worker deployment and Yahoo API permissions.')}
 }
 el('yahoo-login').addEventListener('click',()=>start().catch(e=>status('Unable to start authorization: '+e.message)));
 el('yahoo-fetch').addEventListener('click',testLeague);
