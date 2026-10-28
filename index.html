@@ -437,7 +437,7 @@ async function syncYahoo(){
  const panel=el('yahoo-live');panel.hidden=false;
  panel.innerHTML='<h3>Live Yahoo · Week 8</h3><p class="fine">Last synced: '+escapeHtml(syncedAt)+'</p><p>League: <strong>Unify Ballers League</strong> · '+teams.length+' teams retrieved</p>'+(mine?'<p>Your team: <strong>'+escapeHtml(mine.name)+'</strong> · '+escapeHtml(mine.team_key)+'</p>':'<p>Team ownership not identified yet; manual dashboard remains unchanged.</p>')+'<p>Successful requests: '+(successes.length+details.length)+' · Failed requests: '+errors.length+'</p>'+(errors.length?'<p class="fine">'+escapeHtml(errors.join(' | '))+'</p>':'')+'<details><summary>Live Yahoo data (read-only)</summary><pre id="yahoo-live-json"></pre></details>';
  el('yahoo-live-json').textContent=JSON.stringify({league_key:leagueKey,synced_at:syncedAt,results:successes,details},null,2);
- status('Yahoo sync finished at '+syncedAt+'. '+(errors.length?'Some data could not be displayed: '+errors.join(' | '):'Live roster and dashboard updated.'))button.disabled=false;
+ status('Yahoo sync finished at '+syncedAt+'. '+(errors.length?'Some data could not be displayed: '+errors.join(' | '):'Live roster and dashboard updated.'));button.disabled=false;
 }
 
 const b64url=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
