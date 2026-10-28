@@ -353,6 +353,41 @@ function yTable(headers,rows){return '<div style="overflow-x:auto"><table><thead
 function yCard(title,body){return '<div class="card"><h2>'+escapeHtml(title)+'</h2>'+body+'</div>'}
 function yTeams(data){return extractTeams(data).map(t=>{const m=props(t[0]||[]);const d=t[1]||{};const standing=d.team_standings||{};return {...m,standing:standing,outcomes:standing.outcome_totals||{},points:standing.points_for||'',against:standing.points_against||'',rank:standing.rank||''}})}
 function yMatchup(data,mine){const games=yWalk(data,'matchup');const rows=[];for(const game of games){const g=Array.isArray(game)?game[0]:game;if(!g||typeof g!=='object')continue;const t=yWalk(game,'team').map(x=>{const p=props(x?.[0]||[]);return {name:p.name,key:p.team_key,score:x?.[1]?.team_points?.total,projection:x?.[1]?.team_projected_points?.total}}).filter(x=>x.key);if(t.length)rows.push(...t)}return rows.length?yTable(['Team','Score','Projected'],rows.map(t=>[t.name,t.score,t.projection])):'<p>Yahoo matchup returned, but scores could not be reliably decoded. See raw API response.</p>'}
+
+function gmBriefing({own,teams,players,available,week,errors}){
+ const rec=own.outcomes||{}, wins=Number(rec.wins||0),losses=Number(rec.losses||0);
+ const sorted=[...teams].sort((a,b)=>Number(a.rank||99)-Number(b.rank||99));
+ const rosterNames=new Set(players.map(p=>p.player_key));
+ const byPos=pos=>players.filter(p=>(p.display_position||'').split(',').includes(pos));
+ const starters=players.filter(p=>!['BN','IR',''].includes(p.slot));
+ const questionable=players.filter(p=>/^(Q|D|O|IR|PUP|SUSP)$/i.test(p.status||'')||/injured reserve/i.test(p.status_full||''));
+ const rb=byPos('RB'),wr=byPos('WR'),qb=byPos('QB');
+ const candidates=available.filter(p=>!rosterNames.has(p.player_key)&&['RB','WR','QB','TE'].some(pos=>(p.display_position||'').split(',').includes(pos)));
+ const priorities=[];
+ if(questionable.length)priorities.push({severity:'HIGH',title:'Resolve player availability',detail:questionable.slice(0,5).map(p=>(p.name?.full||'Unknown')+' ('+p.status+')').join(', ')+'. Confirm game status before kickoff.',action:'Review injury report',confidence:'High · Yahoo roster status'});
+ if(starters.length<9)priorities.push({severity:'HIGH',title:'Check starting lineup',detail:'Yahoo lists '+starters.length+' active starter slots in the retrieved roster. Confirm all required positions are filled.',action:'Review roster',confidence:'Medium · slot count'});
+ if(wr.length<4)priorities.push({severity:'MEDIUM',title:'Investigate WR depth',detail:'Only '+wr.length+' WRs are currently on the roster. Compare available replacements and future bye weeks.',action:'Open waiver wire',confidence:'Medium · roster count'});
+ if(rb.length<4)priorities.push({severity:'MEDIUM',title:'Investigate RB depth',detail:'Only '+rb.length+' RBs are currently on the roster. Protect against injury and bye-week exposure.',action:'Open waiver wire',confidence:'Medium · roster count'});
+ if(qb.length>2)priorities.push({severity:'LOW',title:'Evaluate QB roster allocation',detail:'You have '+qb.length+' quarterbacks. Check whether the final bench spot would be more valuable elsewhere.',action:'Review roster',confidence:'Medium · roster count'});
+ if(candidates.length)priorities.push({severity:'OPPORTUNITY',title:'Scout current free agents',detail:candidates.length+' eligible RB/WR/QB/TE players were returned in the current Yahoo availability feed. Availability alone does not establish value.',action:'Open waiver wire',confidence:'High · availability only'});
+ if(!priorities.length)priorities.push({severity:'MONITOR',title:'Monitor weekly changes',detail:'No immediate roster-count or injury-status flags detected. Recheck after injury reports and waivers process.',action:'Refresh Yahoo',confidence:'Limited · no projection feed'});
+ const severityColor={HIGH:'#FCED1E',MEDIUM:'#1DC2BB',LOW:'#C2C2C2',OPPORTUNITY:'#1DC2BB',MONITOR:'#C2C2C2'};
+ const actionTab={'Review injury report':'roster','Review roster':'roster','Open waiver wire':'waivers','Refresh Yahoo':'dashboard'};
+ const cards=priorities.map((p,i)=>'<div class="entry"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>'+(i+1)+'. '+escapeHtml(p.title)+'</strong><span style="color:'+severityColor[p.severity]+';font-size:12px;font-weight:800">'+p.severity+'</span></div><p>'+escapeHtml(p.detail)+'</p><small>Evidence: '+escapeHtml(p.confidence)+'</small><div class="actions"><button type="button" class="gm-go" data-gm-tab="'+actionTab[p.action]+'">'+escapeHtml(p.action)+'</button><button type="button" class="gm-queue" data-gm-note="'+escapeHtml(p.title+': '+p.detail)+'">Add to approval queue</button></div></div>').join('');
+ const outlook='<p><strong>Current standing:</strong> '+escapeHtml(own.rank||'—')+' of '+teams.length+' · '+wins+'–'+losses+'. <strong>Points for:</strong> '+escapeHtml(own.points||'—')+'.</p><p class="fine">Playoff and championship odds are not estimated until scoring rules, future schedules, and projection distributions are validated.</p>';
+ const limits='<details><summary>How recommendations are generated</summary><p>Deterministic, evidence-linked roster checks from the latest Yahoo response. These are not AI model predictions. Player projections, utilization, matchup strength, FAB bid models, and league-specific playoff probabilities are not yet connected. Missing inputs never become invented facts.</p></details>';
+ return yCard('GM Intelligence · Week '+week,'<p>What needs attention right now? Based on your most recent authorized Yahoo sync.</p>'+outlook+cards+limits+(errors.length?'<p class="fine">Partial sync: '+escapeHtml(errors.join(' | '))+'</p>':''));
+}
+function gmBindActions(){
+ document.querySelectorAll('.gm-go').forEach(b=>b.addEventListener('click',()=>{document.querySelector('nav.tabs:not(.secondary-tabs) [data-tab="'+b.dataset.gmTab+'"]')?.click()}));
+ document.querySelectorAll('.gm-queue').forEach(b=>b.addEventListener('click',()=>{
+ const note=b.dataset.gmNote;const proposal=document.getElementById('proposal');
+ document.querySelector('nav.tabs:not(.secondary-tabs) [data-tab="assistant"]')?.click();
+ if(proposal){proposal.value=note;proposal.focus()}
+ const msg=document.getElementById('yahoo-status');if(msg)msg.textContent='Recommendation copied into Assistant GM. Review it and use the existing queue action to save your draft. Nothing was submitted to Yahoo.';
+ }));
+}
+
 function renderYahooLive({teamsData,standingsData,mine,roster,matchup,freeAgents,allRosters,errors,week,syncedAt}){
  const teams=yTeams(standingsData).length?yTeams(standingsData):yTeams(teamsData);
  const ordered=[...teams].sort((a,b)=>Number(a.rank||999)-Number(b.rank||999));
@@ -362,7 +397,7 @@ function renderYahooLive({teamsData,standingsData,mine,roster,matchup,freeAgents
  const recordText=record.wins===undefined?'—':record.wins+'–'+record.losses+(Number(record.ties)?'–'+record.ties:'');
  const dashboard=yCard('Command Center · Week '+week,'<p>Live Yahoo data · Synced '+escapeHtml(syncedAt)+' · Read-only</p><div class="grid">'+[['Record',recordText],['League rank',own.rank||'—'],['Roster players',players.length]].map(([k,v])=>'<div class="card"><small>'+escapeHtml(k)+'</small><div class="stat">'+escapeHtml(v)+'</div></div>').join('')+'</div>'+(errors.length?'<p class="notice">Partial data: '+escapeHtml(errors.join(' | '))+'</p>':'')+ '<p>All changes require manager approval and must be executed in Yahoo.</p>');
  const views={
- dashboard:dashboard,
+ dashboard:dashboard+gmBriefing({own,teams,players,available,week,errors}),
  roster:yCard('My Team · '+mine.name,players.length?yTable(['Slot','Player','Position','NFL team','Status'],players.map(p=>[p.slot,p.name?.full||p.name?.ascii_full,p.display_position,p.editorial_team_abbr,p.status||'Active'])):'<p>Roster unavailable. No old snapshot substituted.</p>'),
  matchup:yCard('Week '+week+' Matchup',matchup?yMatchup(matchup,mine):'<p>Matchup unavailable from Yahoo.</p>'),
  standings:yCard('Live League Standings',yTable(['Rank','Team','Record','Points for','Points against'],ordered.map(t=>[t.rank,t.name,t.outcomes?.wins===undefined?'—':t.outcomes.wins+'-'+t.outcomes.losses,t.points,t.against]))),
@@ -372,11 +407,11 @@ function renderYahooLive({teamsData,standingsData,mine,roster,matchup,freeAgents
  };
  for(const [id,html] of Object.entries(views)){let section=el(id);if(!section&&id==='standings'){section=document.createElement('section');section.id='standings';section.hidden=true;el('league').insertAdjacentElement('afterend',section)}if(section){if(id==='assistant'){let summary=section.querySelector('#yahoo-assistant-context');if(!summary){summary=document.createElement('div');summary.id='yahoo-assistant-context';section.prepend(summary)}summary.innerHTML=html}else section.innerHTML=html;section.dataset.yahooLive='true'}}
  const buttons=document.querySelector('nav.tabs:not(.secondary-tabs)');
- if(buttons){for(const b of buttons.querySelectorAll('button')){if(['import','trades','smack','battle','schedule'].includes(b.dataset.tab))b.hidden=true}if(!buttons.querySelector('[data-tab="standings"]')){const b=document.createElement('button');b.dataset.tab='standings';b.textContent='Standings';buttons.append(b);b.addEventListener('click',()=>{buttons.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('main>section').forEach(x=>{if(x.id!=='yahoo-connect')x.hidden=x.id!=='standings'});el('yahoo-connect').hidden=false})}}
+ if(buttons){for(const b of buttons.querySelectorAll('button')){if(['import','trades','battle','schedule'].includes(b.dataset.tab))b.hidden=true}if(!buttons.querySelector('[data-tab="standings"]')){const b=document.createElement('button');b.dataset.tab='standings';b.textContent='Standings';buttons.append(b);b.addEventListener('click',()=>{buttons.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('main>section').forEach(x=>{if(x.id!=='yahoo-connect')x.hidden=x.id!=='standings'});el('yahoo-connect').hidden=false})}}
  const notice=document.querySelector('main>.notice');if(notice)notice.hidden=true;
  const summary=document.querySelector('main>.grid');if(summary)summary.hidden=true;
- document.querySelectorAll('nav.tabs:not(.secondary-tabs) button').forEach(b=>{if(['import','trades','smack','battle','schedule'].includes(b.dataset.tab))return});
- const first=buttons?.querySelector('[data-tab="dashboard"]');if(first)first.click();
+ document.querySelectorAll('nav.tabs:not(.secondary-tabs) button').forEach(b=>{if(['import','trades','battle','schedule'].includes(b.dataset.tab))return});
+ const first=buttons?.querySelector('[data-tab="dashboard"]');if(first)first.click();gmBindActions();
 }
 
 async function syncYahoo(){
