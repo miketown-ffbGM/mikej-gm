@@ -490,7 +490,7 @@ el('yahoo-copy-guid').addEventListener('click',async()=>{
  try{
   const data=await yahooGet('/fantasy/v2/users;use_login=1?format=json');
   const guid=data?.fantasy_content?.users?.['0']?.user?.[0]?.guid;
-  if(typeof guid!=='string'||!guid||guid==='--hidden--')throw Error('Yahoo did not return a usable GUID.');
+  if(typeof guid!=='string'||!guid||guid==='--hidden--'){const reason=guid==='--hidden--'?'Yahoo returned a masked GUID (--hidden--).':guid==null?'Yahoo response has no GUID.':'Yahoo returned an unexpected GUID format.';throw Error(reason+' We will use a different ownership verification method; no GUID needs to be shared.')}
   await navigator.clipboard.writeText(guid);
   status('Yahoo GUID copied to clipboard. Paste it directly into the OWNER_YAHOO_GUID Cloudflare secret; do not share it in chat.');
  }catch(e){status('Unable to copy Yahoo GUID: '+e.message)}
