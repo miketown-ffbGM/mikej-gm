@@ -434,8 +434,24 @@ async function syncYahoo(){
  const allRosters=teams.map(t=>({name:t.name,players:yPlayerRows(extras.find(x=>x.name==='Team roster: '+t.team_key)?.data)}));
  const syncedAt=new Date().toLocaleString();
  if(mine?.team_key){try{renderYahooLive({teamsData,standingsData:successes.find(x=>x.name==='Standings')?.data,mine,roster:details.find(x=>x.name==='Roster')?.data,matchup:details.find(x=>x.name==='Matchup')?.data,freeAgents,allRosters,errors,week,syncedAt})}catch(e){errors.push('Live dashboard: '+e.message);status('Live dashboard error: '+e.message)}}
+ // Store only a deliberately selected, credential-free subset of Yahoo data.
+ let snapshotStatus='Not saved';
+ if(mine?.team_key==='470.l.523612.t.6' && details.some(x=>x.name==='Roster')){
+  try{
+   const slimPlayer=p=>({name:typeof p.name==='object'?(p.name.full||p.name.ascii_full||''):String(p.name||''),position:p.display_position||'',nflTeam:p.editorial_team_abbr||'',status:p.status||'',slot:p.slot||'',points:p.fantasy_points||''});
+   const standingRows=yTeams(successes.find(x=>x.name==='Standings')?.data||teamsData).map(t=>({name:t.name||'',teamKey:t.team_key||'',rank:t.rank||'',wins:t.outcomes?.wins||0,losses:t.outcomes?.losses||0,ties:t.outcomes?.ties||0,pointsFor:t.points||'',pointsAgainst:t.against||''}));
+   const rosterPlayers=yPlayerRows(details.find(x=>x.name==='Roster')?.data).map(slimPlayer);
+   const agents=yPlayerRows(freeAgents).slice(0,50).map(slimPlayer);
+   const matchupTeams=yWalk(details.find(x=>x.name==='Matchup')?.data,'team').map(t=>{const p=props(t?.[0]||[]);return {name:p.name||'',teamKey:p.team_key||'',score:t?.[1]?.team_points?.total||'',projected:t?.[1]?.team_projected_points?.total||''}}).filter(t=>t.teamKey).slice(0,4);
+   const payload={league:{key:leagueKey,name:'Unify Ballers League'},team:{key:mine.team_key,name:mine.name||'Mike Jacobs'},week,roster:rosterPlayers,matchup:matchupTeams,standings:standingRows,freeAgents:agents};
+   const response=await fetch(workerBase+'/snapshot',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error(result.error||'HTTP '+response.status);
+   snapshotStatus='Saved securely to Cloudflare KV';
+  }catch(e){snapshotStatus='Snapshot upload failed: '+e.message;errors.push(snapshotStatus)}
+ }
  const panel=el('yahoo-live');panel.hidden=false;
- panel.innerHTML='<h3>Live Yahoo · Week 8</h3><p class="fine">Last synced: '+escapeHtml(syncedAt)+'</p><p>League: <strong>Unify Ballers League</strong> · '+teams.length+' teams retrieved</p>'+(mine?'<p>Your team: <strong>'+escapeHtml(mine.name)+'</strong> · '+escapeHtml(mine.team_key)+'</p>':'<p>Team ownership not identified yet; manual dashboard remains unchanged.</p>')+'<p>Successful requests: '+(successes.length+details.length)+' · Failed requests: '+errors.length+'</p>'+(errors.length?'<p class="fine">'+escapeHtml(errors.join(' | '))+'</p>':'')+'<details><summary>Live Yahoo data (read-only)</summary><pre id="yahoo-live-json"></pre></details>';
+ panel.innerHTML='<h3>Live Yahoo · Week 8</h3><p class="fine">Last synced: '+escapeHtml(syncedAt)+'</p><p>League: <strong>Unify Ballers League</strong> · '+teams.length+' teams retrieved</p>'+(mine?'<p>Your team: <strong>'+escapeHtml(mine.name)+'</strong> · '+escapeHtml(mine.team_key)+'</p>':'<p>Team ownership not identified yet; manual dashboard remains unchanged.</p>')+'<p>Secure snapshot: '+escapeHtml(snapshotStatus)+'</p><p>Successful requests: '+(successes.length+details.length)+' · Failed requests: '+errors.length+'</p>'+(errors.length?'<p class="fine">'+escapeHtml(errors.join(' | '))+'</p>':'')+'<details><summary>Live Yahoo data (read-only)</summary><pre id="yahoo-live-json"></pre></details>';
  el('yahoo-live-json').textContent=JSON.stringify({league_key:leagueKey,synced_at:syncedAt,results:successes,details},null,2);
  status('Yahoo sync finished at '+syncedAt+'. '+(errors.length?'Some data could not be displayed: '+errors.join(' | '):'Live roster and dashboard updated.'));button.disabled=false;
 }
